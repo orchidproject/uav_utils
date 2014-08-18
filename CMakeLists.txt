@@ -111,9 +111,7 @@ include_directories(
 # add_dependencies(uav_utils_node uav_utils_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(uav_utils_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(uav_utils  ${catkin_LIBRARIES})
 
 #############
 ## Install ##
@@ -124,10 +122,10 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# install(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+ install(PROGRAMS
+   scripts/uav_utils.py
+   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+ )
 
 ## Mark executables and/or libraries for installation
 # install(TARGETS uav_utils uav_utils_node

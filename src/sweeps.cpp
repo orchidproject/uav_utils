@@ -1,31 +1,43 @@
+#include "uav_utils.h"
 #include<stdlib.h>
 #include<math.h>
 
+int spiral_size(const double start_x, const double start_y, 
+						const double end_x, const double end_y,
+						const double width, const double interval){
+	const double r = sqrt((start_x - end_x)*(start_x - end_x)+(start_y - end_y)*(start_y - end_y));
+	const double omega = 2*r*M_PI / width;
+	const double alpha = width / (4*M_PI);
+	const double length = omega * sqrt(omega*omega + 1) + log(omega + sqrt(omega*omega+1));
+	return ceil((alpha*length) / interval);
+}
 
-double** spiral_sweep(const double start_x, const double start_y, 
+
+int spiral_sweep(const double start_x, const double start_y, 
 						const double end_x, const double end_y,
 						const double width, const double interval,
-						const bool outward, const double tol, int* size){
-							
-	double const shift_theta = atan2(end_y - start_y, end_x - start_x);
-	double const r = sqrt((start_x - end_x)*(start_x - end_x)+(start_y - end_y)*(start_y - end_y));
-	double const omega = 2*r*M_PI / width;
-	double const alpha = width / (4*M_PI);
-	double const length = omega * sqrt(omega*omega + 1) + log(omega + sqrt(omega*omega+1));
-	int n = floor((alpha*length) / interval);
-	if(n * interval < alpha*length)
-		n++;
-	double theta[n];
+						const bool inward, const double tol, 
+						double* x, double* y, const int size){
+	const double r = sqrt((start_x - end_x)*(start_x - end_x)+(start_y - end_y)*(start_y - end_y));
+	const double omega = 2*r*M_PI / width;
+	const double alpha = width / (4*M_PI);
+	const double length = omega * sqrt(omega*omega + 1) + log(omega + sqrt(omega*omega+1));
+	const int n = ceil((alpha*length) / interval);
+	if(n != size)
+		return -1;
+		
+	//Theta keeps the angles of the spiral of each point
+	double* theta = (double*) malloc(n*sizeof(double));
 	theta[0] = 0;
 	
 	//Helper variables
-	int c;
-	double const increment = length / (n - 1);
+	const double increment = length / (n - 1);
 	double df,f, angle;
 	double current_length = 0;
 	double delta = omega / n;
 	
 	for(int i=1;i<n;i++){
+		//Netwon's method to solve equation for theta
 		current_length += increment;
 		angle = theta[i-1] + delta;
 		df = sqrt(angle*angle + 1);
@@ -38,28 +50,45 @@ double** spiral_sweep(const double start_x, const double start_y,
 		theta[i] = angle;
 		delta = theta[i] - theta[i-1];
 	}
-	
-	double shift = shift_theta - theta[n-1] + floor(theta[n-1] / (2 * M_PI)) * 2 * M_PI;
-	double** points = (double**)malloc(n*sizeof(double));
-	for(int i=0;i<n;i++)
-		points[i] = (double*)malloc(2*sizeof(double));
-	if(outward)
+	//Rotational shift so that the end point of the spiral matches the outer point
+	const double shift = atan2(end_y - start_y, end_x - start_x) - theta[n-1] + floor(theta[n-1] / (2 * M_PI)) * 2 * M_PI;
+	if(inward)
 		for(int i=0;i<n;i++){
-			points[i][0] = 2 * alpha * theta[i] * cos(theta[i] + shift) + start_x;
-			points[i][1] = 2 * alpha * theta[i] * sin(theta[i] + shift) + start_y;
+			x[i] = 2 * alpha * theta[n-i-1] * cos(theta[n-i-1] + shift) + start_x;
+			y[i] = 2 * alpha * theta[n-i-1] * sin(theta[n-i-1] + shift) + start_y;
 		}
 	else
 		for(int i=0;i<n;i++){
-			points[i][0] = 2 * alpha * theta[n-i-1] * cos(theta[n-i-1] + shift) + start_x;
-			points[i][1] = 2 * alpha * theta[n-i-1] * sin(theta[n-i-1] + shift) + start_y;
+			x[i] = 2 * alpha * theta[i] * cos(theta[i] + shift) + start_x;
+			y[i] = 2 * alpha * theta[i] * sin(theta[i] + shift) + start_y;
 		}
-	*size = n;
-	return points;
+	free(theta);
+	return 0;
 }
 
-double** rectangular_sweep(const double start_x, const double start_y, 
+
+int rect_size(const double start_x, const double start_y, 
 						const double end_x, const double end_y,
-						const double width, const double interval, int* size){
+						const double width, const double interval){
+	double measure_x = (start_x > end_x) ? start_x - end_x : end_x - start_x;
+	double measure_y = (start_y > end_y) ? start_y - end_y : end_y - start_y;
+	double temp;
+	if(measure_x < measure_y){
+		temp = measure_x;
+		measure_x = measure_y;
+		measure_y = temp;
+	}
+	int n_x = ceil(measure_x / interval);
+	int n_y = ceil(measure_y / width);
+	if(n_y % 2 == 0)
+		n_y++;
+	return n_x * n_y;
+}
+
+int rect_sweep(const double start_x, const double start_y, 
+						const double end_x, const double end_y,
+						const double width, const double interval, 
+						double* x, double* y, const int size){
 	double measure_x = (start_x > end_x) ? start_x - end_x : end_x - start_x;
 	double measure_y = (start_y > end_y) ? start_y - end_y : end_y - start_y;
 	double temp;
@@ -75,7 +104,9 @@ double** rectangular_sweep(const double start_x, const double start_y,
 	int n_y = ceil(measure_y / width);
 	if(n_y % 2 == 0)
 		n_y++;
-		
+	if(n_x * n_y != size)
+		return -1;
+	
 	double increment_x = - measure_x / (n_x - 1);
 	double increment_y = measure_y / (n_y - 1);
 	short sign_x = (start_x - end_x  < 0) ? 1 : -1;
@@ -85,25 +116,28 @@ double** rectangular_sweep(const double start_x, const double start_y,
 		sign_x = sign_y;
 		sign_y = temp;
 	}
-	double offset_x = flip ? start_y : start_x;
-	double offset_y = flip ? start_x : start_y;
-	
-	double** points = (double**)malloc(n_x*n_y*sizeof(double));
-	for(int i=0;i<n_x*n_y;i++)
-		points[i] = (double*)malloc(2*sizeof(double));
+	const double offset_x = flip ? start_y : start_x;
+	const double offset_y = flip ? start_x : start_y;
 
-	for(int i=0;i<n_y;i++){
-		increment_x = - increment_x;
-		points[i*n_x][flip] = i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
-		points[i*n_x][!flip] = offset_y + sign_y * i * measure_y / (n_y - 1);
-		for(int j=1;j<n_x;j++){
-			points[i*n_x + j][flip] = points[i*n_x + j - 1][flip] + sign_x * increment_x;
-			points[i*n_x + j][!flip] = points[i*n_x][!flip];
+	if(flip)
+		for(int i=0;i<n_y;i++){
+			increment_x = - increment_x;
+			x[i*n_x]= i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
+			y[i*n_x] = offset_y + sign_y * i * measure_y / (n_y - 1);
+			for(int j=1;j<n_x;j++){
+				x[i*n_x + j] = x[i*n_x + j - 1] + sign_x * increment_x;
+				y[i*n_x + j] = y[i*n_x];
+			}
 		}
-	}
-	*size = n_x*n_y;
-	return points;
+	else
+		for(int i=0;i<n_y;i++){
+			increment_x = - increment_x;
+			y[i*n_x]= i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
+			x[i*n_x] = offset_y + sign_y * i * measure_y / (n_y - 1);
+			for(int j=1;j<n_x;j++){
+				y[i*n_x + j] = y[i*n_x + j - 1] + sign_x * increment_x;
+				x[i*n_x + j] = x[i*n_x];
+			}
+		}
+	return 0;
 }
-						
-						
-						
