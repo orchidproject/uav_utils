@@ -78,8 +78,8 @@ int rect_size(const double start_x, const double start_y,
 		measure_x = measure_y;
 		measure_y = temp;
 	}
-	int n_x = ceil(measure_x / interval);
-	int n_y = ceil(measure_y / width);
+    int n_x = ceil(measure_x / interval) + 1;
+    int n_y = ceil(measure_y / width) + 1;
 	if(n_y % 2 == 0)
 		n_y++;
 	return n_x * n_y;
@@ -100,8 +100,8 @@ int rect_sweep(const double start_x, const double start_y,
 		measure_y = temp;
 	}
 	
-	int n_x = ceil(measure_x / interval);
-	int n_y = ceil(measure_y / width);
+    int n_x = ceil(measure_x / interval) + 1;
+    int n_y = ceil(measure_y / width) + 1;
 	if(n_y % 2 == 0)
 		n_y++;
 	if(n_x * n_y != size)

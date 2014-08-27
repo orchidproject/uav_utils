@@ -10,8 +10,8 @@ if(measures(1) < measures(2))
     measures(2) = measures(1);
     measures(1) = abs(start(2) - stop(2));
 end
-nh = ceil(measures(1) / interval);
-nv = ceil(measures(2) / width);
+nh = ceil(measures(1) / interval) + 1;
+nv = ceil(measures(2) / width) + 1;
 if mod(nv,2) == 0
     nv = nv + 1;
 end
