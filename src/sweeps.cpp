@@ -1,6 +1,7 @@
 #include "uav_utils.h"
 #include<stdlib.h>
 #include<math.h>
+//#include<stdio.h>
 
 int spiral_size(const double start_x, const double start_y, 
 						const double end_x, const double end_y,
@@ -70,7 +71,7 @@ int spiral_sweep(const double start_x, const double start_y,
 int rect_size(const double start_x, const double start_y, 
 						const double end_x, const double end_y,
 						const double width, const double interval){
-	double measure_x = (start_x > end_x) ? start_x - end_x : end_x - start_x;
+    double measure_x = (start_x > end_x) ? start_x - end_x : end_x - start_x;
 	double measure_y = (start_y > end_y) ? start_y - end_y : end_y - start_y;
 	double temp;
 	if(measure_x < measure_y){
@@ -100,8 +101,8 @@ int rect_sweep(const double start_x, const double start_y,
 		measure_y = temp;
 	}
 	
-    int n_x = ceil(measure_x / interval) + 1;
-    int n_y = ceil(measure_y / width) + 1;
+    	int n_x = ceil(measure_x / interval) + 1;
+    	int n_y = ceil(measure_y / width) + 1;
 	if(n_y % 2 == 0)
 		n_y++;
 	if(n_x * n_y != size)
@@ -110,7 +111,7 @@ int rect_sweep(const double start_x, const double start_y,
 	double increment_x = - measure_x / (n_x - 1);
 	double increment_y = measure_y / (n_y - 1);
 	short sign_x = (start_x - end_x  < 0) ? 1 : -1;
-	short sign_y = (start_y - end_y < 0)? 1 : -1;
+    	short sign_y = (start_y - end_y < 0) ? 1 : -1;
 	if(flip){
 		short temp = sign_x;
 		sign_x = sign_y;
@@ -118,18 +119,8 @@ int rect_sweep(const double start_x, const double start_y,
 	}
 	const double offset_x = flip ? start_y : start_x;
 	const double offset_y = flip ? start_x : start_y;
-
+	//printf("(%2.f,%2.f,%2.f,%2.f,%2.f,%2.f,%d)\n",measure_x,measure_y,offset_x,offset_y, increment_x,increment_y,(int)flip);
 	if(flip)
-		for(int i=0;i<n_y;i++){
-			increment_x = - increment_x;
-			x[i*n_x]= i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
-			y[i*n_x] = offset_y + sign_y * i * measure_y / (n_y - 1);
-			for(int j=1;j<n_x;j++){
-				x[i*n_x + j] = x[i*n_x + j - 1] + sign_x * increment_x;
-				y[i*n_x + j] = y[i*n_x];
-			}
-		}
-	else
 		for(int i=0;i<n_y;i++){
 			increment_x = - increment_x;
 			y[i*n_x]= i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
@@ -137,6 +128,16 @@ int rect_sweep(const double start_x, const double start_y,
 			for(int j=1;j<n_x;j++){
 				y[i*n_x + j] = y[i*n_x + j - 1] + sign_x * increment_x;
 				x[i*n_x + j] = x[i*n_x];
+			}
+		}
+	else
+		for(int i=0;i<n_y;i++){
+			increment_x = - increment_x;
+			x[i*n_x]= i % 2 == 0 ? offset_x : offset_x + sign_x * measure_x;
+			y[i*n_x] = offset_y + sign_y * i * measure_y / (n_y - 1);
+			for(int j=1;j<n_x;j++){
+				x[i*n_x + j] = x[i*n_x + j - 1] + sign_x * increment_x;
+				y[i*n_x + j] = y[i*n_x];
 			}
 		}
 	return 0;
