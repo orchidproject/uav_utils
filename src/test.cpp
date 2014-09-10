@@ -83,7 +83,7 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
     //   Convert pixel coordinates in to camera frame coordinates
     //**************************************************************************
     int n = inPixel.cols();
-    Eigen::Matrix<double,2,Eigen::Dynamic> coordInCameraFrame = (inPixel.colwise() - intristic.block<2,1>(0,2)).array().colwise() / intristic.diagonal().head<2>().array();
+    Eigen::Array<double,2,Eigen::Dynamic> coordInCameraFrame = (inPixel.colwise() - intristic.block<2,1>(0,2)).array().colwise() / intristic.diagonal().head<2>().array();
 
     //std::cout<<"Start:"<<std::endl<<coordInCameraFrame<<std::endl;
 
@@ -93,21 +93,21 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
     //   See following URL for explanation:
     //   http://www.vision.caltech.edu/bouguetj/calib_doc/htmls/parameters.html
     //**************************************************************************
-    Eigen::Matrix<double,2,Eigen::Dynamic> tangentalDistortion(2,n);
-    Eigen::Matrix<double,2,Eigen::Dynamic> newCoordinates(2,n);
-    Eigen::Matrix<double,1,Eigen::Dynamic> squaredR(1,n);
-    Eigen::Matrix<double,1,Eigen::Dynamic> radialDistortion(1,n);
-    Eigen::Matrix<double,1,Eigen::Dynamic> errors(1,n);
+    Eigen::Array<double,2,Eigen::Dynamic> tangentalDistortion(2,n);
+    Eigen::Array<double,2,Eigen::Dynamic> newCoordinates(2,n);
+    Eigen::Array<double,1,Eigen::Dynamic> squaredR(1,n);
+    Eigen::Array<double,1,Eigen::Dynamic> radialDistortion(1,n);
+    Eigen::Array<double,1,Eigen::Dynamic> errors(1,n);
     do{
-        squaredR = coordInCameraFrame.colwise().squaredNorm();
-        radialDistortion = (distortionCoeffs(0) * squaredR + distortionCoeffs(1) * squaredR.cwiseProduct(squaredR) +
-                distortionCoeffs(4) * squaredR.cwiseProduct(squaredR).cwiseProduct(squaredR)).array() + 1;
-        tangentalDistortion << 2 * distortionCoeffs(2) * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(1)) +
-                 distortionCoeffs(3) * (squaredR + 2 * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(0))),
-                             2 * distortionCoeffs(3) * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(1)) +
-                 distortionCoeffs(2) * (squaredR + 2 * coordInCameraFrame.row(1).cwiseProduct(coordInCameraFrame.row(1)));
-        newCoordinates = (coordInCameraFrame - tangentalDistortion).array().rowwise() * radialDistortion.array();
-        errors = (newCoordinates - coordInCameraFrame).colwise().squaredNorm();
+        squaredR = coordInCameraFrame.square().colwise().sum();
+        radialDistortion = (distortionCoeffs(0) * squaredR + distortionCoeffs(1) * squaredR * squaredR +
+                distortionCoeffs(4) * squaredR * squaredR * squaredR) + 1;
+        tangentalDistortion << 2 * distortionCoeffs(2) * coordInCameraFrame.row(0) * coordInCameraFrame.row(1) +
+                 distortionCoeffs(3) * (squaredR + 2 * coordInCameraFrame.row(0).square()),
+                             2 * distortionCoeffs(3) * coordInCameraFrame.row(0) * coordInCameraFrame.row(1) +
+                 distortionCoeffs(2) * (squaredR + 2 * coordInCameraFrame.row(1).square());
+        newCoordinates = (coordInCameraFrame - tangentalDistortion).rowwise() * radialDistortion;
+        errors = (newCoordinates - coordInCameraFrame).square().colwise().sum();
         coordInCameraFrame = newCoordinates;
 
         //std::cout<<"Radial:"<<std::endl<<radial_distort<<std::endl;
@@ -149,6 +149,10 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
 } //projectPixels
 
 int main() {
+    Eigen::Array<double,2,Eigen::Dynamic> a(2,3);
+    a << 1, 2, 3, 3 ,4, 5;
+    std::cout<< a.square().colwise().sum() << std::endl;
+    std::cout<< a*a <<std::endl;
     Eigen::Vector2d pixel(0,0);
     Eigen::Vector2d pixel2(638,439);
     Eigen::MatrixXd pixels(2,2);
