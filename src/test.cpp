@@ -82,6 +82,7 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
     //**************************************************************************
     //   Convert pixel coordinates in to camera frame coordinates
     //**************************************************************************
+    int n = inPixel.cols();
     Eigen::Matrix<double,2,Eigen::Dynamic> coordInCameraFrame = (inPixel.colwise() - intristic.block<2,1>(0,2)).array().colwise() / intristic.diagonal().head<2>().array();
 
     //std::cout<<"Start:"<<std::endl<<coordInCameraFrame<<std::endl;
@@ -92,20 +93,20 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
     //   See following URL for explanation:
     //   http://www.vision.caltech.edu/bouguetj/calib_doc/htmls/parameters.html
     //**************************************************************************
-    Eigen::Matrix<double,2,Eigen::Dynamic> tangental_distort(2,inPixel.cols());
-    Eigen::Matrix<double,2,Eigen::Dynamic> newCoordinates(2,inPixel.cols());
-    Eigen::Matrix<double,1,Eigen::Dynamic> squared_r(1,inPixel.cols());
-    Eigen::Matrix<double,1,Eigen::Dynamic> radial_distort(1,inPixel.cols());
-    Eigen::Matrix<double,1,Eigen::Dynamic> errors(1,inPixel.cols());
+    Eigen::Matrix<double,2,Eigen::Dynamic> tangentalDistortion(2,n);
+    Eigen::Matrix<double,2,Eigen::Dynamic> newCoordinates(2,n);
+    Eigen::Matrix<double,1,Eigen::Dynamic> squaredR(1,n);
+    Eigen::Matrix<double,1,Eigen::Dynamic> radialDistortion(1,n);
+    Eigen::Matrix<double,1,Eigen::Dynamic> errors(1,n);
     do{
-        squared_r = coordInCameraFrame.colwise().squaredNorm();
-        radial_distort = (distortionCoeffs(0) * squared_r + distortionCoeffs(1) * squared_r.cwiseProduct(squared_r) +
-                distortionCoeffs(4) * squared_r.cwiseProduct(squared_r).cwiseProduct(squared_r)).array() + 1;
-        tangental_distort << 2 * distortionCoeffs(2) * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(1)) +
-                 distortionCoeffs(3) * (squared_r + 2 * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(0))),
+        squaredR = coordInCameraFrame.colwise().squaredNorm();
+        radialDistortion = (distortionCoeffs(0) * squaredR + distortionCoeffs(1) * squaredR.cwiseProduct(squaredR) +
+                distortionCoeffs(4) * squaredR.cwiseProduct(squaredR).cwiseProduct(squaredR)).array() + 1;
+        tangentalDistortion << 2 * distortionCoeffs(2) * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(1)) +
+                 distortionCoeffs(3) * (squaredR + 2 * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(0))),
                              2 * distortionCoeffs(3) * coordInCameraFrame.row(0).cwiseProduct(coordInCameraFrame.row(1)) +
-                 distortionCoeffs(2) * (squared_r + 2 * coordInCameraFrame.row(1).cwiseProduct(coordInCameraFrame.row(1)));
-        newCoordinates = (coordInCameraFrame - tangental_distort).array().rowwise() * radial_distort.array();
+                 distortionCoeffs(2) * (squaredR + 2 * coordInCameraFrame.row(1).cwiseProduct(coordInCameraFrame.row(1)));
+        newCoordinates = (coordInCameraFrame - tangentalDistortion).array().rowwise() * radialDistortion.array();
         errors = (newCoordinates - coordInCameraFrame).colwise().squaredNorm();
         coordInCameraFrame = newCoordinates;
 
@@ -120,20 +121,31 @@ Eigen::Matrix<double,3,Eigen::Dynamic> projectPixels(const Eigen::Matrix<double,
 
     //**************************************************************************
     //   Project pixel coordinates and camera frame origin to world frame
+    //   NOTE:
+    //   The pixels calculated from the above procedure give us an (x,y)
+    //   coordiante in the camera frame, positioned on the plane with z=1
+    //   thus to apply the transform, which works with 4-D vectors, we need
+    //   to add two additional rows of 1's to the newCoordiantes matrix
+    //   pixelsExtended does exactly this
     //**************************************************************************
     Eigen::Vector3d centerInWorld = (toWorld * Eigen::Vector4d(0,0,0,1)).head<3>();
-    Eigen::Matrix<double,3,Eigen::Dynamic> pixelsInWorld = (toWorld.matrix()*(Eigen::MatrixXd(4,inPixel.cols()) << newCoordinates,Eigen::MatrixXd::Constant(2,inPixel.cols(),1)).finished()).topRows<3>();
+    Eigen::Matrix<double,4,Eigen::Dynamic> pixelsExtended = Eigen::MatrixXd::Constant(4,n,1);
+    pixelsExtended.topRows<2>() = newCoordinates;
+    Eigen::Matrix<double,3,Eigen::Dynamic> pixelsInWorld = (toWorld.matrix() * pixelsExtended).topRows<3>();
+    //**************************************************************************
+    //   Intersect Rays with the projection plane, and return result
+    //**************************************************************************
+    Eigen::Array<double,1,Eigen::Dynamic> ts = -(offsetPlane + normPlane.dot(centerInWorld)) / (normPlane.transpose()*(pixelsInWorld.colwise() - centerInWorld)).array();
+
     //std::cout<<((pixelsInWorld.colwise() - centerInWorld).array().colwise() * normPlane.array()).colwise().sum().array()<<std::endl;
     //std::cout<<normPlane.transpose()*(pixelsInWorld.colwise() - centerInWorld)<<std::endl;
-    //std::cout<<-(offsetPlane + normPlane.dot(centerInWorld)) * Eigen::MatrixXd::Constant(1,inPixel.cols(),1).array() / (normPlane.transpose()*(pixelsInWorld.colwise() - centerInWorld)).array()<<std::endl;
-    Eigen::RowVectorXd ts = -(offsetPlane + normPlane.dot(centerInWorld)) / (normPlane.transpose()*(pixelsInWorld.colwise() - centerInWorld)).array();
-
+    //std::cout<<-(offsetPlane + normPlane.dot(centerInWorld)) * Eigen::MatrixXd::Constant(1,n,1).array() / (normPlane.transpose()*(pixelsInWorld.colwise() - centerInWorld)).array()<<std::endl;
     //std::cout<< "Center:" << std::endl << centerInWorld << std::endl;
     //std::cout<< "Pixels:" << std::endl << pixelsInWorld << std::endl;
     //std::cout<< "t:" << std::endl << ts << std::endl;
     //std::cout<<" Result: " << ((pixelsInWorld.colwise() - centerInWorld).array().rowwise() * ts.array()).colwise() + centerInWorld.array()<< std::endl;
 
-    return ((pixelsInWorld.colwise() - centerInWorld).array().rowwise() * ts.array()).colwise() + centerInWorld.array();
+    return ((pixelsInWorld.colwise() - centerInWorld).array().rowwise() * ts).colwise() + centerInWorld.array();
 } //projectPixels
 
 int main() {
