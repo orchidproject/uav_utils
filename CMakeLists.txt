@@ -93,6 +93,7 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR})
 
 find_package(Eigen3 REQUIRED) 
 include_directories(
@@ -114,8 +115,8 @@ add_executable(t src/test.cpp)
 # add_dependencies(uav_utils_node uav_utils_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(uav_utils  ${catkin_LIBRARIES} ${EIGEN3_INCLUDE_DIR})
-target_link_libraries(t  ${catkin_LIBRARIES} ${EIGEN3_INCLUDE_DIR})
+target_link_libraries(uav_utils  ${catkin_LIBRARIES})
+target_link_libraries(t  ${catkin_LIBRARIES}) 
 
 #############
 ## Install ##
