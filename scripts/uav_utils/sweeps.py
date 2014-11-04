@@ -1,8 +1,15 @@
 #!/usr/bin/env python
 
+import platform
 from ctypes import CDLL, c_double, c_int, c_bool, byref
 
-lib = CDLL("libuav_utils.so")
+# load dynamic library on OS X
+if platform.system() == 'Darwin':
+    lib = CDLL("libuav_utils.dylib")
+
+# otherwise assume unix extensions (not sure how to support windows)
+else:
+    lib = CDLL("libuav_utils.so")
 
 
 def spiral_sweep(start, end, width, interval, inward=True, tol=0.01):
