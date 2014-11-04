@@ -47,4 +47,5 @@ def rect_sweep(start, end, width, interval):
 
 if __name__ == '__main__':
     print spiral_sweep([0, 0], [20, 21], 3, 10)
+    print spiral_sweep([0, 0], [20, 21], 3, 10, False)
     print rect_sweep([2, 2], [12, 12], 2, 5)
